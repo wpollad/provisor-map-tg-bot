@@ -1,4 +1,5 @@
 import TeleBot from "telebot";
+<<<<<<< HEAD
 
 const bot = new TeleBot("TELEGRAM_BOT_TOKEN");
 
@@ -88,3 +89,91 @@ bot.on("inlineQuery", (msg) => {
 bot.start();
 
 export default bot;
+=======
+import * as tf from "@tensorflow/tfjs-node"; // Используйте tfjs-node для сервера
+
+const bot = new TeleBot(process.env.TELEGRAM_BOT_TOKEN);
+
+const wordIndex = {
+    coa: 1,
+    sms: 2,
+    sum: 3,
+    fom: 4,
+    gom: 5,
+    jua: 6,
+    mut: 7,
+    frg: 8,
+    pmc: 9,
+    drc: 10,
+    che: 11,
+    lbf: 12,
+    grj: 13,
+    bsh: 14,
+    ena: 15,
+    hby: 16,
+    gob: 17,
+    wht: 18,
+    rye: 19,
+    msg: 20,
+    goe: 21,
+};
+
+const uniqueLabels = [
+    51, 38, 31, 23, 41, 52, 28, 100, 24, 35, 37, 97, 32, 83, 66, 48, 25, 7, 59,
+    62, 55, 21, 60, 89, 20, 74, 33, 17, 76, 45,
+];
+
+let model = null;
+
+// Функция для преобразования текста в последовательность
+const textToSequence = (text) => {
+    return text.split(" ").map((word) => wordIndex[word] || 0);
+};
+
+// Загрузка модели
+const loadModel = async () => {
+    try {
+        model = await tf.loadLayersModel(
+            "https://provisor-map-back.vercel.app/model.json",
+        );
+        console.log("Model loaded successfully");
+    } catch (error) {
+        console.error("Error loading the model:", error);
+    }
+};
+
+// Вызов функции для загрузки модели при запуске бота
+loadModel();
+
+// Обработка текстовых сообщений
+bot.on("text", async (msg) => {
+    const userMessage = msg.text;
+
+    // Проверяем, была ли загружена модель
+    if (model) {
+        const sequence = textToSequence(userMessage);
+        const paddedSequence = Array.from({ length: 3 }).map(
+            (_, i) => sequence[i] || 0,
+        );
+
+        const inputTensor = tf.tensor2d([paddedSequence], [1, 3]);
+        const prediction = model.predict(inputTensor);
+        const labelIndex = prediction.argMax(-1).dataSync()[0];
+        const predictedValue = uniqueLabels[labelIndex];
+
+        // Отправляем предсказанное значение пользователю
+        bot.sendMessage(
+            msg.from.id,
+            `Предсказанное значение: ${predictedValue}`,
+        );
+    } else {
+        bot.sendMessage(
+            msg.from.id,
+            "Модель еще не загружена. Пожалуйста, подождите.",
+        );
+    }
+});
+
+// Запуск бота
+bot.start();
+>>>>>>> c64bedf (feat: ai)
