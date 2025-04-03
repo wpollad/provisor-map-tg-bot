@@ -30,6 +30,11 @@ function parseMessage(text) {
   return groups.map((group) => `/g_withdraw ${group.join(" ")}`).map((cmd) => `\`${cmd}\``).join("\n");
 }
 
+// Форматируем дату и время
+function formatDate(date) {
+  return new Date(date * 1000).toISOString().replace('T', ' ').replace('Z', ' UTC');
+}
+
 // Универсальная обработка входящих сообщений
 bot.on("*", (msg) => {
   try {
@@ -41,11 +46,17 @@ bot.on("*", (msg) => {
     }
 
     const parsedResult = parseMessage(text);
+    const botName = bot.me.username;
+    const botId = bot.me.id;
+
+    // Если сообщение успешно обработано
     if (parsedResult) {
       return bot.sendMessage(msg.from.id, parsedResult, { parseMode: "Markdown" });
     } else if (isForwarded) {
-      const messageTime = new Date(msg.forward_date * 1000).toLocaleString();
-      return bot.sendMessage(msg.from.id, `🕒 Время пересланного сообщения: ${messageTime}`);
+      // Если сообщение переслано
+      const messageTime = formatDate(msg.forward_date);
+      const response = `Message: ${text}\nBot: ${botName} (@${botName} / ${botId})\nDate: ${messageTime}`;
+      return bot.sendMessage(msg.from.id, response);
     } else {
       return bot.sendMessage(msg.from.id, "Не удалось обработать сообщение.");
     }
