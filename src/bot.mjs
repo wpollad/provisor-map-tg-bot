@@ -1,179 +1,141 @@
 import TeleBot from "telebot";
-<<<<<<< HEAD
-
-const bot = new TeleBot("TELEGRAM_BOT_TOKEN");
-
-// On commands
-bot.on(["/start", "/back"], (msg) => {
-    let replyMarkup = bot.keyboard(
-        [
-            ["/buttons", "/inlineKeyboard"],
-            ["/start", "/hide"],
-        ],
-        { resize: true },
-    );
-
-    return bot.sendMessage(msg.from.id, "Keyboard example.", { replyMarkup });
-});
-
-// Buttons
-bot.on("/buttons", (msg) => {
-    let replyMarkup = bot.keyboard(
-        [
-            [
-                bot.button("contact", "Your contact"),
-                bot.button("location", "Your location"),
-            ],
-            ["/back", "/hide"],
-        ],
-        { resize: true },
-    );
-
-    return bot.sendMessage(msg.from.id, "Button example.", { replyMarkup });
-});
-
-// Hide keyboard
-bot.on("/hide", (msg) => {
-    return bot.sendMessage(
-        msg.from.id,
-        "Hide keyboard example. Type /back to show.",
-        { replyMarkup: "hide" },
-    );
-});
-
-// On location on contact message
-bot.on(["location", "contact"], (msg, self) => {
-    return bot.sendMessage(msg.from.id, `Thank you for ${self.type}.`);
-});
-
-// Inline buttons
-bot.on("/inlineKeyboard", (msg) => {
-    let replyMarkup = bot.inlineKeyboard([
-        [
-            bot.inlineButton("callback", { callback: "this_is_data" }),
-            bot.inlineButton("inline", { inline: "some query" }),
-        ],
-        [bot.inlineButton("url", { url: "https://telegram.org" })],
-    ]);
-
-    return bot.sendMessage(msg.from.id, "Inline keyboard example.", {
-        replyMarkup,
-    });
-});
-
-// Inline button callback
-bot.on("callbackQuery", (msg) => {
-    // User message alert
-    return bot.answerCallbackQuery(
-        msg.id,
-        `Inline button callback: ${msg.data}`,
-        true,
-    );
-});
-
-// Inline query
-bot.on("inlineQuery", (msg) => {
-    const query = msg.query;
-    const answers = bot.answerList(msg.id);
-
-    answers.addArticle({
-        id: "query",
-        title: "Inline Query",
-        description: `Your query: ${query}`,
-        message_text: "Click!",
-    });
-
-    return bot.answerQuery(answers);
-});
-
-bot.start();
-
-export default bot;
-=======
-import * as tf from "@tensorflow/tfjs-node"; // Используйте tfjs-node для сервера
 
 const bot = new TeleBot(process.env.TELEGRAM_BOT_TOKEN);
 
-const wordIndex = {
-    coa: 1,
-    sms: 2,
-    sum: 3,
-    fom: 4,
-    gom: 5,
-    jua: 6,
-    mut: 7,
-    frg: 8,
-    pmc: 9,
-    drc: 10,
-    che: 11,
-    lbf: 12,
-    grj: 13,
-    bsh: 14,
-    ena: 15,
-    hby: 16,
-    gob: 17,
-    wht: 18,
-    rye: 19,
-    msg: 20,
-    goe: 21,
-};
+// Функция для преобразования текста в нужный формат
+function parseMessage(text) {
+  const lines = text.split("\n");
+  const items = [];
 
-const uniqueLabels = [
-    51, 38, 31, 23, 41, 52, 28, 100, 24, 35, 37, 97, 32, 83, 66, 48, 25, 7, 59,
-    62, 55, 21, 60, 89, 20, 74, 33, 17, 76, 45,
-];
-
-let model = null;
-
-// Функция для преобразования текста в последовательность
-const textToSequence = (text) => {
-    return text.split(" ").map((word) => wordIndex[word] || 0);
-};
-
-// Загрузка модели
-const loadModel = async () => {
-    try {
-        model = await tf.loadLayersModel(
-            "https://provisor-map-back.vercel.app/model.json",
-        );
-        console.log("Model loaded successfully");
-    } catch (error) {
-        console.error("Error loading the model:", error);
+  for (let line of lines) {
+    if (line.includes("/gw_")) {
+      const parts = line.split(" ");
+      for (let part of parts) {
+        if (part.startsWith("/gw_")) {
+          const item = part.substring(4);
+          const [code, count] = item.split("_");
+          items.push(`${code} ${count}`);
+        }
+      }
     }
-};
+  }
 
-// Вызов функции для загрузки модели при запуске бота
-loadModel();
+  if (items.length === 0) return null; // Если ничего не найдено, вернуть null
 
-// Обработка текстовых сообщений
-bot.on("text", async (msg) => {
-    const userMessage = msg.text;
+  const groups = [];
+  for (let i = 0; i < items.length; i += 9) {
+    groups.push(items.slice(i, i + 9));
+  }
 
-    // Проверяем, была ли загружена модель
-    if (model) {
-        const sequence = textToSequence(userMessage);
-        const paddedSequence = Array.from({ length: 3 }).map(
-            (_, i) => sequence[i] || 0,
-        );
+  return groups
+    .map((group) => `/g_withdraw ${group.join(" ")}`)
+    .map((cmd) => `\`${cmd}\``)
+    .join("\n");
+}
 
-        const inputTensor = tf.tensor2d([paddedSequence], [1, 3]);
-        const prediction = model.predict(inputTensor);
-        const labelIndex = prediction.argMax(-1).dataSync()[0];
-        const predictedValue = uniqueLabels[labelIndex];
+// Универсальная обработка входящих сообщений
+bot.on("*", (msg) => {
+  try {
+    let text = msg.text || (msg.reply_to_message && msg.reply_to_message.text);
 
-        // Отправляем предсказанное значение пользователю
-        bot.sendMessage(
-            msg.from.id,
-            `Предсказанное значение: ${predictedValue}`,
-        );
+    if (!text) {
+      return bot.sendMessage(
+        msg.from.id,
+        "Сообщение не содержит текста для обработки.",
+      );
+    }
+
+    const parsedResult = parseMessage(text);
+    if (parsedResult) {
+      return bot.sendMessage(msg.from.id, parsedResult, {
+        parseMode: "Markdown",
+      });
     } else {
-        bot.sendMessage(
-            msg.from.id,
-            "Модель еще не загружена. Пожалуйста, подождите.",
-        );
+      const messageTime = new Date(msg.date * 1000).toLocaleString();
+      return bot.sendMessage(msg.from.id, `🕒 Время сообщения: ${messageTime}`);
     }
+  } catch (error) {
+    console.error("Ошибка при обработке сообщения:", error);
+    return bot.sendMessage(
+      msg.from.id,
+      "Произошла ошибка при обработке сообщения.",
+    );
+  }
 });
 
-// Запуск бота
-bot.start();
->>>>>>> c64bedf (feat: ai)
+// // Обработчик для получения текстовых сообщений
+// bot.on("text", (msg) => {
+//   const userMessage = msg.text;
+//   return bot.sendMessage(msg.from.id, userMessage);
+// });
+//
+// bot.on("text", (msg) => {
+//     const url = `https://cataas.com/cat?random=${Math.random()}`;
+//     return msg.reply.photo(url);
+// });
+
+// Обработчик для получения JSON-файлов
+// bot.on("document", async (msg) => {
+//     const fileId = msg.document.file_id;
+//     const fileName = msg.document.file_name;
+
+//     // Проверяем, что файл имеет JSON-формат
+//     if (path.extname(fileName) !== ".json") {
+//         return bot.sendMessage(msg.from.id, "Пожалуйста, отправьте JSON-файл.");
+//     }
+
+//     try {
+//         // Получаем URL для скачивания файла
+//         const fileInfo = await bot.getFile(fileId);
+//         const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${fileInfo.file_path}`;
+
+//         // Скачиваем файл
+//         const response = await axios.get(fileUrl, { responseType: "stream" });
+//         const filePath = path.resolve("./", fileName);
+//         const writer = fs.createWriteStream(filePath);
+
+//         response.data.pipe(writer);
+
+//         writer.on("finish", async () => {
+//             // Чтение и извлечение ключей JSON-файла
+//             const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+//             const keys = Object.keys(data);
+
+//             // const messages = data.messages;
+//             // const messages = JSON.parse(data).messages;
+
+//             // const cwM = messages.filter(
+//             //     (message) =>
+//             //         message.from_id === "user265204902" &&
+//             //         Array.isArray(message.text) &&
+//             //         message.text.some(
+//             //             (item) =>
+//             //                 typeof item === "object" &&
+//             //                 item.text &&
+//             //                 item.text.includes("/cook_recipe"),
+//             //         ),
+//             // );
+
+//             // Создаем сообщение со списком ключей${JSON.stringify(data)}`;
+//             const responseMessage = `Ключи в JSON: ${keys.join(", ")}`;
+//             // const responseMessage = `Ключи в JSON: ${messages.length}`;
+//             // const responseMessage = `Результат: ${cwM}`;
+
+//             // Отправляем список ключей пользователю
+//             await bot.sendMessage(msg.from.id, responseMessage);
+
+//             // Удаление временного файла
+//             fs.unlinkSync(filePath);
+//         });
+
+//         writer.on("error", (err) => {
+//             bot.sendMessage(msg.from.id, "Ошибка при обработке файла.");
+//             console.error("Ошибка записи файла:", err);
+//         });
+//     } catch (error) {
+//         bot.sendMessage(msg.from.id, "Не удалось обработать файл.");
+//         console.error("Ошибка:", error);
+//     }
+// });
+
+export default bot;
