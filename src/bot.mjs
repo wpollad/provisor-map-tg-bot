@@ -53,7 +53,7 @@ bot.on("*", (msg) => {
     } else if (isForwarded) {
       // Если сообщение переслано
       const messageTime = formatDate(msg.forward_date);
-      const response = `Date: ${messageTime}`;
+      const response = `Message: ${text}\nDate: ${messageTime}`;
       return bot.sendMessage(msg.from.id, response);
     } else {
       return bot.sendMessage(msg.from.id, "Не удалось обработать сообщение.");
