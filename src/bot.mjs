@@ -27,39 +27,31 @@ function parseMessage(text) {
     groups.push(items.slice(i, i + 9));
   }
 
-  return groups
-    .map((group) => `/g_withdraw ${group.join(" ")}`)
-    .map((cmd) => `\`${cmd}\``)
-    .join("\n");
+  return groups.map((group) => `/g_withdraw ${group.join(" ")}`).map((cmd) => `\`${cmd}\``).join("\n");
 }
 
 // Универсальная обработка входящих сообщений
 bot.on("*", (msg) => {
   try {
+    const isForwarded = !!msg.forward_date; // Проверяем, переслано ли сообщение
     let text = msg.text || (msg.reply_to_message && msg.reply_to_message.text);
 
     if (!text) {
-      return bot.sendMessage(
-        msg.from.id,
-        "Сообщение не содержит текста для обработки.",
-      );
+      return bot.sendMessage(msg.from.id, "Сообщение не содержит текста для обработки.");
     }
 
     const parsedResult = parseMessage(text);
     if (parsedResult) {
-      return bot.sendMessage(msg.from.id, parsedResult, {
-        parseMode: "Markdown",
-      });
+      return bot.sendMessage(msg.from.id, parsedResult, { parseMode: "Markdown" });
+    } else if (isForwarded) {
+      const messageTime = new Date(msg.forward_date * 1000).toLocaleString();
+      return bot.sendMessage(msg.from.id, `🕒 Время пересланного сообщения: ${messageTime}`);
     } else {
-      const messageTime = new Date(msg.date * 1000).toLocaleString();
-      return bot.sendMessage(msg.from.id, `🕒 Время сообщения: ${messageTime}`);
+      return bot.sendMessage(msg.from.id, "Не удалось обработать сообщение.");
     }
   } catch (error) {
     console.error("Ошибка при обработке сообщения:", error);
-    return bot.sendMessage(
-      msg.from.id,
-      "Произошла ошибка при обработке сообщения.",
-    );
+    return bot.sendMessage(msg.from.id, "Произошла ошибка при обработке сообщения.");
   }
 });
 
