@@ -54,7 +54,7 @@ bot.on("*", (msg) => {
       // Если сообщение переслано
       const messageTime = formatDate(msg.forward_date);
       const response = `**Message:** ${text}\n\n**Date:** ${messageTime}`;
-      return bot.sendMessage(msg.from.id, response);
+      return bot.sendMessage(msg.from.id, response, { parseMode: "MarkdownV2" });
     } else {
       return bot.sendMessage(msg.from.id, "Не удалось обработать сообщение.");
     }
