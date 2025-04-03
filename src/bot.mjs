@@ -46,8 +46,6 @@ bot.on("*", (msg) => {
     }
 
     const parsedResult = parseMessage(text);
-    const botName = bot.me.username;
-    const botId = bot.me.id;
 
     // Если сообщение успешно обработано
     if (parsedResult) {
@@ -55,7 +53,7 @@ bot.on("*", (msg) => {
     } else if (isForwarded) {
       // Если сообщение переслано
       const messageTime = formatDate(msg.forward_date);
-      const response = `Message: ${text}\nBot: ${botName} (@${botName} / ${botId})\nDate: ${messageTime}`;
+      const response = `Date: ${messageTime}`;
       return bot.sendMessage(msg.from.id, response);
     } else {
       return bot.sendMessage(msg.from.id, "Не удалось обработать сообщение.");
